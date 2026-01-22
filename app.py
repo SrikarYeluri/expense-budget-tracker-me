@@ -114,7 +114,7 @@ if filtered_expenses:
         col1, col2 = st.columns([6, 1])
         with col1:
             st.write(
-                f"{exp['Date']} | {exp['Category']} → {exp['Type']} | Rs{exp['Amount']} | {exp['Description']}"
+                f"{exp['Date']} | {exp['Category']} | {exp['Type']} | Rs{exp['Amount']} | {exp['Description']}"
             )
         with col2:
             original_index = st.session_state.expenses.index(exp)
