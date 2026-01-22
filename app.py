@@ -6,6 +6,21 @@ from collections import defaultdict
 
 EXPENSE_FILE = "expenses.csv"
 
+DAILY_CATEGORIES = [
+    "Food",
+    "Car Petrol",
+    "Movie Ticket",
+    "New Clothes",
+    "Haircut"
+]
+
+MONTHLY_CATEGORIES = [
+    "Electricity",
+    "Water",
+    "Gym Membership",
+    "OTT Subscription"
+]
+
 # -------------------- SESSION STATE INIT --------------------
 if "expenses" not in st.session_state:
     st.session_state.expenses = []
@@ -21,19 +36,21 @@ if "expenses" not in st.session_state:
 def save_expenses():
     with open(EXPENSE_FILE, "w", newline="") as f:
         writer = csv.DictWriter(
-            f, fieldnames=["Date", "Category", "Amount", "Description"]
+            f,
+            fieldnames=["Date", "Expense_Type", "Category", "Amount", "Description"]
         )
         writer.writeheader()
         writer.writerows(st.session_state.expenses)
 
 
-def add_expense(exp_date, category, amount, desc):
+def add_expense(exp_date, exp_type, category, amount, desc):
     if amount <= 0:
         st.warning("Amount must be greater than 0")
         return
 
     st.session_state.expenses.append({
         "Date": exp_date.strftime("%Y-%m-%d"),
+        "Expense_Type": exp_type,
         "Category": category,
         "Amount": amount,
         "Description": desc
@@ -56,47 +73,45 @@ def generate_monthly_data():
 
 # -------------------- CSV DOWNLOAD --------------------
 def download_daily_csv():
-    csv_data = "Date,Category,Amount,Description\n"
+    csv_data = "Date,Expense_Type,Category,Amount,Description\n"
     for e in st.session_state.expenses:
-        csv_data += f"{e['Date']},{e['Category']},{e['Amount']},{e['Description']}\n"
+        csv_data += (
+            f"{e['Date']},{e['Expense_Type']},"
+            f"{e['Category']},{e['Amount']},{e['Description']}\n"
+        )
 
     st.download_button(
-        "Download Daily Expenses CSV",
+        "Download Expenses CSV",
         csv_data,
         file_name="daily_expenses.csv",
         mime="text/csv"
     )
 
-
-def download_monthly_csv(monthly_data):
-    csv_data = "Year,Month,Total_Amount\n"
-    for (year, month), total in monthly_data.items():
-        csv_data += f"{year},{month},{total}\n"
-
-    st.download_button(
-        "Download Monthly Expenses CSV",
-        csv_data,
-        file_name="monthly_expenses.csv",
-        mime="text/csv"
-    )
-
 # -------------------- UI --------------------
 st.set_page_config(page_title="Expense Tracker", layout="wide")
-st.title("Personal Expense Tracker")
+st.title("Srikar Expense Tracker")
 
 # -------- Add Expense --------
 st.header("Add Expense")
 
-exp_date = st.date_input("Date", value=date.today())
-category = st.selectbox(
-    "Category",
-    ["Food", "Transport", "Entertainment", "Utilities", "Other"]
+exp_type = st.radio(
+    "Expense Type",
+    ["Daily", "Monthly"],
+    horizontal=True
 )
+
+exp_date = st.date_input("Date", value=date.today())
+
+if exp_type == "Daily":
+    category = st.selectbox("Category", DAILY_CATEGORIES)
+else:
+    category = st.selectbox("Category", MONTHLY_CATEGORIES)
+
 amount = st.number_input("Amount", min_value=0.0, format="%.2f")
 desc = st.text_input("Description")
 
 if st.button("Add Expense"):
-    add_expense(exp_date, category, amount, desc)
+    add_expense(exp_date, exp_type, category, amount, desc)
     if amount > 0:
         st.success("Expense added successfully!")
 
@@ -118,23 +133,20 @@ filtered_expenses = [
 
 if filtered_expenses:
     for i, exp in enumerate(filtered_expenses):
-        col1, col2 = st.columns([5, 1])
+        col1, col2 = st.columns([6, 1])
         with col1:
             st.write(
-                f"{exp['Date']} | {exp['Category']} | ₹{exp['Amount']} | {exp['Description']}"
+                f"{exp['Date']} | {exp['Expense_Type']} | "
+                f"{exp['Category']} | ₹{exp['Amount']} | {exp['Description']}"
             )
         with col2:
             original_index = st.session_state.expenses.index(exp)
-            if st.button("❌ Remove", key=f"remove_{i}"):
+            if st.button("Remove Expense", key=f"remove_{i}"):
                 remove_expense(original_index)
                 st.experimental_rerun()
 else:
     st.info("No expenses recorded on this day.")
 
 # -------- Downloads --------
-st.header("Download Expense Data")
-
+st.header("Download Data")
 download_daily_csv()
-
-monthly_data = generate_monthly_data()
-download_monthly_csv(monthly_data)
