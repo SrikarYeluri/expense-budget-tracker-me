@@ -1,161 +1,195 @@
 import streamlit as st
 import csv
 import os
-from datetime import datetime, date
-from collections import defaultdict
+from datetime import datetime
 
-EXPENSE_FILE = "expenses.csv"
-BUDGET_FILE = "budget.csv"
+FILE_PATH = "expenses.csv"
 
 # -------------------- SESSION STATE INIT --------------------
 if "expenses" not in st.session_state:
     st.session_state.expenses = []
 
-    if os.path.exists(EXPENSE_FILE):
-        with open(EXPENSE_FILE, "r", newline="") as f:
+    if os.path.exists(FILE_PATH):
+        with open(FILE_PATH, "r", newline="") as f:
             reader = csv.DictReader(f)
             for row in reader:
-                row["Amount"] = float(row["Amount"])
+                row["Amount"] = float(row["Amount"])  # FIX: ensure float
                 st.session_state.expenses.append(row)
 
-# -------------------- BUDGET FUNCTIONS --------------------
-def save_budget(month, year, budget):
-    with open(BUDGET_FILE, "w", newline="") as f:
-        writer = csv.writer(f)
-        writer.writerow(["Month", "Year", "Budget"])
-        writer.writerow([month, year, budget])
-
-
-def load_budget():
-    if os.path.exists(BUDGET_FILE):
-        with open(BUDGET_FILE, "r") as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                return row
-    return None
-
-# -------------------- EXPENSE FUNCTIONS --------------------
-def save_expenses():
-    with open(EXPENSE_FILE, "w", newline="") as f:
-        writer = csv.DictWriter(
-            f, fieldnames=["Date", "Category", "Amount", "Description"]
-        )
-        writer.writeheader()
-        writer.writerows(st.session_state.expenses)
-
-
-def add_expense(exp_date, category, amount, desc):
+# -------------------- DATA FUNCTIONS --------------------
+def add_expense(date, category, amount, description):
+    # FIX 2: validation
     if amount <= 0:
         st.warning("Amount must be greater than 0")
         return
 
-    st.session_state.expenses.append({
-        "Date": exp_date.strftime("%Y-%m-%d"),
+    new_expense = {
+        # FIX 1: consistent date format
+        "Date": date.strftime("%Y-%m-%d"),
         "Category": category,
-        "Amount": amount,
-        "Description": desc
-    })
+        "Amount": float(amount),
+        "Description": description
+    }
+
+    st.session_state.expenses.append(new_expense)
     save_expenses()
 
-# -------------------- DATA AGGREGATION --------------------
-def generate_weekly_data():
-    weekly = defaultdict(float)
+
+def save_expenses():
+    with open(FILE_PATH, "w", newline="") as f:
+        writer = csv.DictWriter(
+            f,
+            fieldnames=["Date", "Category", "Amount", "Description"]
+        )
+        writer.writeheader()
+        for exp in st.session_state.expenses:
+            writer.writerow(exp)
+
+
+def load_expenses():
+    if os.path.exists(FILE_PATH):
+        with open(FILE_PATH, "r", newline="") as f:
+            reader = csv.DictReader(f)
+            data = []
+            for row in reader:
+                row["Amount"] = float(row["Amount"])  # FIX: float conversion
+                data.append(row)
+            st.session_state.expenses = data
+        st.success("Expenses loaded successfully!")
+    else:
+        st.warning("No saved expenses found!")
+
+# -------------------- VISUALIZATION --------------------
+def daily_trend(selected_category):
+    if not st.session_state.expenses:
+        st.warning("No expenses to show!")
+        return
+
+    daily_totals = {}
+
     for exp in st.session_state.expenses:
-        d = datetime.strptime(exp["Date"], "%Y-%m-%d")
-        week_key = f"{d.year}-W{d.isocalendar()[1]}"
-        weekly[week_key] += exp["Amount"]
-    return weekly
+        if selected_category != "All" and exp["Category"] != selected_category:
+            continue
+
+        date = exp["Date"]
+        amount = exp["Amount"]
+        daily_totals[date] = daily_totals.get(date, 0) + amount
+
+    if daily_totals:
+        sorted_dates = sorted(daily_totals.keys())
+        sorted_values = [daily_totals[d] for d in sorted_dates]
+        st.line_chart({"Amount": sorted_values}, x=sorted_dates)
+    else:
+        st.info("No data for this category.")
 
 
-def generate_monthly_data():
-    monthly = defaultdict(float)
+def monthly_comparison(selected_category):
+    if not st.session_state.expenses:
+        st.warning("No expenses to show!")
+        return
+
+    monthly_totals = {}
+
     for exp in st.session_state.expenses:
-        d = datetime.strptime(exp["Date"], "%Y-%m-%d")
-        month_key = d.strftime("%Y-%m")
-        monthly[month_key] += exp["Amount"]
-    return monthly
+        if selected_category != "All" and exp["Category"] != selected_category:
+            continue
+
+        try:
+            dt = datetime.strptime(exp["Date"], "%Y-%m-%d")
+        except ValueError:
+            continue
+
+        month_key = dt.strftime("%Y-%m")
+        monthly_totals[month_key] = monthly_totals.get(month_key, 0) + exp["Amount"]
+
+    if monthly_totals:
+        sorted_months = sorted(monthly_totals.keys())
+        sorted_values = [monthly_totals[m] for m in sorted_months]
+        st.bar_chart({"Amount": sorted_values}, x=sorted_months)
+    else:
+        st.info("No data for this category.")
 
 
-def download_csv(filename, header, rows):
-    csv_data = ",".join(header) + "\n"
-    for row in rows:
-        csv_data += ",".join(map(str, row)) + "\n"
-    st.download_button(
-        label=f"Download {filename}",
-        data=csv_data,
-        file_name=filename,
-        mime="text/csv"
+def category_breakdown():
+    if not st.session_state.expenses:
+        st.warning("No expenses to show!")
+        return
+
+    category_totals = {}
+
+    for exp in st.session_state.expenses:
+        category = exp["Category"]
+        amount = exp["Amount"]
+        category_totals[category] = category_totals.get(category, 0) + amount
+
+    st.bar_chart(
+        {"Amount": list(category_totals.values())},
+        x=list(category_totals.keys())
     )
 
 # -------------------- UI --------------------
-st.title("Personal Expense & Budget Tracker")
+st.title("DevDuniya Expense Tracker")
 
-# -------- Budget Section --------
-st.header("Set Monthly Budget")
+with st.sidebar:
+    st.header("Add Expense")
 
-budget_month = st.selectbox("Month", list(range(1, 13)))
-budget_year = st.number_input("Year", value=date.today().year, step=1)
-budget_amount = st.number_input("Monthly Budget", min_value=0.0)
-
-if st.button("Save Budget"):
-    save_budget(budget_month, budget_year, budget_amount)
-    st.success("Budget saved successfully!")
-
-saved_budget = load_budget()
-if saved_budget:
-    st.info(
-        f"Current Budget: ₹{saved_budget['Budget']} "
-        f"for {saved_budget['Month']}/{saved_budget['Year']}"
+    date = st.date_input("Date")
+    category = st.selectbox(
+        "Category",
+        ["Food", "Transport", "Entertainment", "Utilities", "Other"]
     )
+    amount = st.number_input("Amount", min_value=0.0, format="%.2f")
+    description = st.text_input("Description")
 
-# -------- Expense Entry --------
-st.header("Add Daily Expense")
+    if st.button("Add"):
+        add_expense(date, category, amount, description)
+        if amount > 0:
+            st.success("Expense added!")
 
-exp_date = st.date_input("Date", value=date.today())
-category = st.selectbox(
-    "Category",
-    ["Food", "Transport", "Entertainment", "Utilities", "Other"]
+    st.header("File Operations")
+    if st.button("Save Expenses"):
+        save_expenses()
+        st.success("Expenses saved!")
+
+    if st.button("Load Expenses"):
+        load_expenses()
+
+# -------------------- FILTER --------------------
+st.header("Filter")
+selected_category = st.selectbox(
+    "Select Category for Trend/Comparison",
+    ["All", "Food", "Transport", "Entertainment", "Utilities", "Other"]
 )
-amount = st.number_input("Amount", min_value=0.0, format="%.2f")
-desc = st.text_input("Description")
 
-if st.button("Add Expense"):
-    add_expense(exp_date, category, amount, desc)
-    if amount > 0:
-        st.success("Expense added!")
-
-# -------- Expense Table --------
-st.header("All Expenses")
+# -------------------- TABLE --------------------
+st.header("Expenses Table")
 
 if st.session_state.expenses:
-    st.table(st.session_state.expenses)
+    if selected_category == "All":
+        st.table(st.session_state.expenses)
+    else:
+        filtered = [
+            exp for exp in st.session_state.expenses
+            if exp["Category"] == selected_category
+        ]
+        st.table(filtered)
 else:
-    st.write("No expenses recorded yet.")
+    st.write("No expenses yet.")
 
-# -------- Download Section --------
-st.header("Download Data for Excel")
+# -------------------- CHARTS --------------------
+st.header("Daily Trend")
+daily_trend(selected_category)
 
-# Daily
-download_csv(
-    "daily_expenses.csv",
-    ["Date", "Category", "Amount", "Description"],
-    [[e["Date"], e["Category"], e["Amount"], e["Description"]]
-     for e in st.session_state.expenses]
-)
+st.header("Monthly Comparison")
+monthly_comparison(selected_category)
 
-# Weekly
-weekly_data = generate_weekly_data()
-download_csv(
-    "weekly_expenses.csv",
-    ["Week", "Total Amount"],
-    weekly_data.items()
-)
+st.header("Category Breakdown (All Categories)")
+category_breakdown()
 
-# Monthly
-monthly_data = generate_monthly_data()
-download_csv(
-    "monthly_expenses.csv",
-    ["Month", "Total Amount"],
-    monthly_data.items()
-)
+
+
+
+
+
+
 
