@@ -5,7 +5,6 @@ from datetime import datetime, date
 from collections import defaultdict
 
 EXPENSE_FILE = "expenses.csv"
-BUDGET_FILE = "budget.csv"
 
 # -------------------- SESSION STATE INIT --------------------
 if "expenses" not in st.session_state:
@@ -57,14 +56,9 @@ def generate_monthly_data():
 
 # -------------------- CSV DOWNLOAD --------------------
 def download_daily_csv():
-    rows = [
-        [e["Date"], e["Category"], e["Amount"], e["Description"]]
-        for e in st.session_state.expenses
-    ]
-
     csv_data = "Date,Category,Amount,Description\n"
-    for r in rows:
-        csv_data += ",".join(map(str, r)) + "\n"
+    for e in st.session_state.expenses:
+        csv_data += f"{e['Date']},{e['Category']},{e['Amount']},{e['Description']}\n"
 
     st.download_button(
         "Download Daily Expenses CSV",
@@ -87,9 +81,10 @@ def download_monthly_csv(monthly_data):
     )
 
 # -------------------- UI --------------------
-st.title("Personal Expense & Budget Tracker")
+st.set_page_config(page_title="Expense Tracker", layout="wide")
+st.title("Personal Expense Tracker")
 
-# -------- Expense Entry --------
+# -------- Add Expense --------
 st.header("Add Expense")
 
 exp_date = st.date_input("Date", value=date.today())
@@ -105,25 +100,39 @@ if st.button("Add Expense"):
     if amount > 0:
         st.success("Expense added successfully!")
 
-# -------- Expense Table with Remove Option --------
-st.header("All Expenses")
+# -------- View Expenses by Date --------
+st.header("View Expenses by Date")
 
-if st.session_state.expenses:
-    for i, exp in enumerate(st.session_state.expenses):
+selected_date = st.date_input(
+    "Select Date",
+    value=date.today(),
+    key="view_date"
+)
+
+selected_date_str = selected_date.strftime("%Y-%m-%d")
+
+filtered_expenses = [
+    e for e in st.session_state.expenses
+    if e["Date"] == selected_date_str
+]
+
+if filtered_expenses:
+    for i, exp in enumerate(filtered_expenses):
         col1, col2 = st.columns([5, 1])
         with col1:
             st.write(
                 f"{exp['Date']} | {exp['Category']} | ₹{exp['Amount']} | {exp['Description']}"
             )
         with col2:
-            if st.button("❌ Remove", key=i):
-                remove_expense(i)
+            original_index = st.session_state.expenses.index(exp)
+            if st.button("❌ Remove", key=f"remove_{i}"):
+                remove_expense(original_index)
                 st.experimental_rerun()
 else:
-    st.info("No expenses recorded yet.")
+    st.info("No expenses recorded on this day.")
 
 # -------- Downloads --------
-st.header("Download Data")
+st.header("Download Expense Data")
 
 download_daily_csv()
 
