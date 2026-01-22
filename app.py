@@ -70,12 +70,12 @@ category = st.selectbox(
 )
 
 expense_type_map = {
-    "Food": ["Breakfast", "Lunch", "Dinner", "Snacks"],
-    "Transport": ["Car Petrol", "Bus", "Taxi"],
+    "Food": ["Breakfast", "Lunch", "Dinner"],
+    "Transport": ["Car Petrol", "Cab"],
     "Entertainment": ["Movie Ticket", "Games"],
     "Shopping": ["New Clothes", "Accessories"],
-    "Personal Care": ["Haircut", "Grooming"],
-    "Utilities": ["Electricity", "Water"],
+    "Personal Care": ["Haircut"],
+    "Utilities": ["Electricity", "Water","Rent"],
     "Fitness": ["Gym Membership"],
     "Subscriptions": ["OTT Subscription"]
 }
@@ -85,7 +85,7 @@ expense_type = st.selectbox(
     expense_type_map.get(category, [])
 )
 
-amount = st.number_input("Amount (₹)", min_value=0.0, format="%.2f")
+amount = st.number_input("Amount (Rs)", min_value=0.0, format="%.2f")
 desc = st.text_input("Description (Optional)")
 
 if st.button("Add Expense"):
@@ -114,7 +114,7 @@ if filtered_expenses:
         col1, col2 = st.columns([6, 1])
         with col1:
             st.write(
-                f"{exp['Date']} | {exp['Category']} → {exp['Type']} | ₹{exp['Amount']} | {exp['Description']}"
+                f"{exp['Date']} | {exp['Category']} → {exp['Type']} | Rs{exp['Amount']} | {exp['Description']}"
             )
         with col2:
             original_index = st.session_state.expenses.index(exp)
