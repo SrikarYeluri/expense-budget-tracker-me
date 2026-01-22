@@ -48,10 +48,10 @@ def remove_expense(index):
 
 # -------------------- UI --------------------
 st.set_page_config(page_title="Expense Tracker", layout="wide")
-st.title("💰 Personal Expense Tracker (Daily)")
+st.title("Srikar Expense Tracker")
 
 # -------- Add Expense --------
-st.header("➕ Add Daily Expense")
+st.header("Add Daily Expense")
 
 exp_date = st.date_input("Date", value=date.today())
 
@@ -94,7 +94,7 @@ if st.button("Add Expense"):
         st.success("Expense added successfully!")
 
 # -------- View Expenses by Date --------
-st.header("📅 View Expenses by Date")
+st.header("View Expenses by Date")
 
 selected_date = st.date_input(
     "Select Date",
@@ -114,18 +114,18 @@ if filtered_expenses:
         col1, col2 = st.columns([6, 1])
         with col1:
             st.write(
-                f"📌 {exp['Date']} | {exp['Category']} → {exp['Type']} | ₹{exp['Amount']} | {exp['Description']}"
+                f"{exp['Date']} | {exp['Category']} → {exp['Type']} | ₹{exp['Amount']} | {exp['Description']}"
             )
         with col2:
             original_index = st.session_state.expenses.index(exp)
-            if st.button("❌ Remove", key=f"remove_{i}"):
+            if st.button("Remove", key=f"remove_{i}"):
                 remove_expense(original_index)
                 st.experimental_rerun()
 else:
     st.info("No expenses recorded on this day.")
 
 # -------- Download Daily CSV --------
-st.header("⬇ Download Daily Expenses")
+st.header("Download Daily Expenses")
 
 csv_data = "Date,Category,Type,Amount,Description\n"
 for e in st.session_state.expenses:
